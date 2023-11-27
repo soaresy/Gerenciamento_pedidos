@@ -1,0 +1,79 @@
+CREATE DATABASE IF NOT EXISTS cliente;
+USE cliente;
+CREATE TABLE Clientes (
+    ClienteID INT PRIMARY KEY,
+    NomeCliente VARCHAR(50),
+    EmailCliente VARCHAR(50),
+    TotalPedidos DECIMAL(10, 2)
+);
+
+-- Inserção de dados de exemplo
+INSERT INTO Clientes (ClienteID, NomeCliente, EmailCliente)
+VALUES (1, 'joao', 'joao@example.com'),
+       (2, 'maria', 'maria@example.com');
+
+CREATE TABLE Pedidos (
+    PedidoID INT PRIMARY KEY,
+    ClienteID INT,
+    Descricao VARCHAR(255),
+    Valor DECIMAL(10, 2),
+    FOREIGN KEY (ClienteID) REFERENCES Clientes(ClienteID)
+);
+
+
+INSERT INTO Pedidos (PedidoID, ClienteID, Descricao, Valor)
+VALUES (1, 1, 'banana', 100.00),
+       (2, 1, 'pera', 50.00),
+       (3, 2, 'alface', 75.00);
+
+
+DELIMITER //
+
+CREATE PROCEDURE InserirPedido(
+    IN cliente_id INT,
+    IN descricao_pedido VARCHAR(255),
+    IN valor_pedido DECIMAL(10, 2)
+)
+BEGIN
+    INSERT INTO Pedidos (ClienteID, Descricao, Valor)
+    VALUES (cliente_id, descricao_pedido, valor_pedido);
+END //
+
+DELIMITER ;
+
+DELIMITER //
+
+CREATE TRIGGER CalculaTotalPedidos
+AFTER INSERT ON Pedidos
+FOR EACH ROW
+BEGIN
+    DECLARE total_pedidos DECIMAL(10, 2);
+    
+    SET total_pedidos = (
+        SELECT SUM(Valor)
+        FROM Pedidos
+        WHERE ClienteID = NEW.ClienteID
+    );
+    
+    UPDATE Clientes
+    SET TotalPedidos = total_pedidos
+    WHERE ClienteID = NEW.ClienteID;
+END //
+
+DELIMITER ;
+
+
+CREATE VIEW PedidosClientes AS
+SELECT c.ClienteID, c.NomeCliente, p.PedidoID, p.Descricao, p.Valor
+FROM Clientes c
+JOIN Pedidos p ON c.ClienteID = p.ClienteID;
+
+SELECT
+    pc.ClienteID,
+    pc.NomeCliente,
+    pc.PedidoID,
+    pc.Descricao,
+    pc.Valor,
+    c.TotalPedidos
+FROM PedidosClientes pc
+JOIN Clientes c ON pc.ClienteID = c.ClienteID;
